@@ -1,106 +1,38 @@
-import pygame
-import sys
+import os
+import glob
+import cv2
+import pytesseract
 
-# Inicjalizacja Pygame
-pygame.init()
+# Ścieżka do tesseract OCR
+pytesseract.pytesseract.tesseract_cmd = 'C:\\Users\\przem\\PycharmProjects\\ocrAPI\\tesseract.exe'
 
-# Ustawienia ekranu
-screen = pygame.display.set_mode((800, 600))
 
-# Ustawienia kolorów
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
+def odczytaj_tekst_z_obrazu(sciezka_obrazu):
+    obraz = cv2.imread(sciezka_obrazu)
+    przetworzony_obraz = cv2.cvtColor(obraz, cv2.COLOR_BGR2GRAY)
+    tekst = pytesseract.image_to_string(przetworzony_obraz)
+    return tekst
 
-# Ustawienia racketki
-racket = pygame.Rect(0, 0, 100, 20)
-racket.centerx = screen.get_width() // 2
-racket.bottom = screen.get_height() - 20
 
-# Ustawienia piłki
-ball = pygame.Rect(0, 0, 20, 20)
-ball.centerx = screen.get_width() // 2
-ball.centery = screen.get_height() // 2
+def zapisz_tekst_do_pliku(tekst, sciezka_pliku):
+    with open(sciezka_pliku, 'w', encoding='utf-8') as plik:
+        plik.write(tekst)
 
-# Ustawienia ruchu piłki
-ball_speed_x = 3
-ball_speed_y = -3
 
-# Ustawienia cegieł
-brick_rows = 4
-brick_cols = 10
-brick_width = 60
-brick_height = 20
-brick_margin = 10
-bricks = []
+folder = "C:\\Users\\przem\\PycharmProjects\\ocrAPI\\image"
+sciezka_pliku_tekstowego = 'C:\\Users\\przem\\PycharmProjects\\ocrAPI\\ImageConverted\\ImageConverted'
 
-for i in range(brick_rows):
-    for j in range(brick_cols):
-        brick = pygame.Rect(
-            j * (brick_width + brick_margin) + brick_margin,
-            i * (brick_height + brick_margin) + brick_margin,
-            brick_width,
-            brick_height,
-        )
-        bricks.append(brick)
+# Znajdź wszystkie pliki obrazów w folderze
+sciezki_obrazow = glob.glob(os.path.join(folder, '*.[PpJj][Nn][GgJj]*'))
 
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+# Sortuj pliki według daty modyfikacji w kolejności malejącej
+sciezki_obrazow.sort(key=os.path.getmtime, reverse=True)
 
-    keys = pygame.key.get_pressed()
-
-    if keys[pygame.K_LEFT] and racket.left > 0:
-        racket.move_ip(-5, 0)
-    if keys[pygame.K_RIGHT] and racket.right < screen.get_width():
-        racket.move_ip(5, 0)
-
-    # Ruch piłki
-    ball.move_ip(ball_speed_x, ball_speed_y)
-
-    # Odbijanie piłki od ścian
-    if ball.left <= 0 or ball.right >= screen.get_width():
-        ball_speed_x = -ball_speed_x
-    if ball.top <= 0:
-        ball_speed_y = -ball_speed_y
-
-    # Odbijanie piłki od racketki
-    if ball.colliderect(racket):
-        ball_speed_y = -ball_speed_y
-
-    # Kolizja piłki z cegłami
-    for brick in bricks:
-        if ball.colliderect(brick):
-            ball_speed_y = -ball_speed_y
-            bricks.remove(brick)
-            break
-
-    # Przegrana - piłka opada poniżej dolnej krawędzi ekranu
-    if ball.bottom > screen.get_height():
-        print("Przegrana!")
-        break
-
-    # Wygrana - wszystkie cegły zostały zniszczone
-    if not bricks:
-        print("Wygrana!")
-        break
-
-    # Czyszczenie ekranu
-    screen.fill(BLACK)
-
-    # Rysowanie racketki
-    pygame.draw.rect(screen, WHITE, racket)
-
-    # Rysowanie piłki
-    pygame.draw.circle(screen, WHITE, ball.center, ball.width // 2)
-
-    # Rysowanie cegieł
-    for brick in bricks:
-        pygame.draw.rect(screen, WHITE, brick)
-
-    # Aktualizacja ekranu
-    pygame.display.flip()
-
-    # Kontrola szybkości gry
-    pygame.time.delay(10)
+# Wybierz pierwszy obraz (najnowszy)
+if len(sciezki_obrazow) > 0:
+    sciezka_obrazu = sciezki_obrazow[0]
+    tekst_z_obrazu = odczytaj_tekst_z_obrazu(sciezka_obrazu)
+    zapisz_tekst_do_pliku(tekst_z_obrazu, sciezka_pliku_tekstowego)
+    print('Tekst został zapisany do pliku:', sciezka_pliku_tekstowego)
+else:
+    print('Brak obrazów w folderze.')
