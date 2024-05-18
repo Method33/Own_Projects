@@ -1,38 +1,38 @@
-import os
-import glob
-import cv2
-import pytesseract
+import Augmentor
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-# Ścieżka do tesseract OCR
-pytesseract.pytesseract.tesseract_cmd = 'C:\\Users\\przem\\PycharmProjects\\ocrAPI\\tesseract.exe'
+# Lista nazw folderów (klas)
+nazwy_folderow = ["Buk", "Dab", "Jesion", "Jodla", "Modrzew", "Olcha", "Sosna", "Swierk"]
+
+# Utwórz obiekt Pipeline dla każdego folderu i dodaj operacje.
+pipelines = [Augmentor.Pipeline(nazwa_folderu) for nazwa_folderu in nazwy_folderow]
+
+for p in pipelines:
+    p.resize(probability=1, width=224, height=224)
+    p.rotate(probability=0.7, max_left_rotation=10, max_right_rotation=10)
+    p.zoom(probability=0.5, min_factor=1.1, max_factor=1.5)
+    p.flip_left_right(probability=0.5)
+    p.flip_top_bottom(probability=0.5)
+
+# Wygeneruj próbki dla każdego pipeline.
+for p in pipelines:
+    p.sample(300)
+
+# Ścieżka do folderu z wygenerowanymi obrazami.
+output_folder = "C:/Users/przem/PycharmProjects/WoodRecog"
 
 
-def odczytaj_tekst_z_obrazu(sciezka_obrazu):
-    obraz = cv2.imread(sciezka_obrazu)
-    przetworzony_obraz = cv2.cvtColor(obraz, cv2.COLOR_BGR2GRAY)
-    tekst = pytesseract.image_to_string(przetworzony_obraz)
-    return tekst
+# Utworzenie instancji ImageDataGenerator.
+datagen = ImageDataGenerator(
+    rescale=1./255,  # Przeskalowanie obrazów do wartości od 0 do 1
+)
 
-
-def zapisz_tekst_do_pliku(tekst, sciezka_pliku):
-    with open(sciezka_pliku, 'w', encoding='utf-8') as plik:
-        plik.write(tekst)
-
-
-folder = "C:\\Users\\przem\\PycharmProjects\\ocrAPI\\image"
-sciezka_pliku_tekstowego = 'C:\\Users\\przem\\PycharmProjects\\ocrAPI\\ImageConverted\\ImageConverted'
-
-# Znajdź wszystkie pliki obrazów w folderze
-sciezki_obrazow = glob.glob(os.path.join(folder, '*.[PpJj][Nn][GgJj]*'))
-
-# Sortuj pliki według daty modyfikacji w kolejności malejącej
-sciezki_obrazow.sort(key=os.path.getmtime, reverse=True)
-
-# Wybierz pierwszy obraz (najnowszy)
-if len(sciezki_obrazow) > 0:
-    sciezka_obrazu = sciezki_obrazow[0]
-    tekst_z_obrazu = odczytaj_tekst_z_obrazu(sciezka_obrazu)
-    zapisz_tekst_do_pliku(tekst_z_obrazu, sciezka_pliku_tekstowego)
-    print('Tekst został zapisany do pliku:', sciezka_pliku_tekstowego)
-else:
-    print('Brak obrazów w folderze.')
+# Ładowanie obrazów z dysku.
+image_data = datagen.flow_from_directory(
+    output_folder,
+    target_size=(224, 224),  # Wymiary obrazów po przeskalowaniu
+    color_mode='rgb',  # Kolor obrazów
+    class_mode='categorical',  # Rodzaj klasyfikacji - tutaj wieloklasowa
+    batch_size=32,  # Rozmiar batcha
+)
